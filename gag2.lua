@@ -1,24 +1,4 @@
 -- ==========================================
--- [ แก้บั๊กค้าง 25% ] บังคับข้ามการรอ Assets
--- ==========================================
-pcall(function()
-    local ReplicatedFirst = game:GetService("ReplicatedFirst")
-    ReplicatedFirst:RemoveDefaultLoadingScreen()
-    
-    -- บังคับปิด UI โหลดเกมให้เร็วที่สุด
-    if game:IsLoaded() == false then
-        game.Loaded:Wait()
-    end
-    
-    local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    for _, gui in pairs(PlayerGui:GetChildren()) do
-        if gui:IsA("ScreenGui") and (gui.Name:lower():find("load") or gui.Name:lower():find("intro")) then
-            gui:Destroy()
-        end
-    end
-end)
-
--- ==========================================
 -- [ โหลดการตั้งค่าจาก getgenv ]
 -- ==========================================
 local Config = getgenv().AutoFarmConfig or {
@@ -116,36 +96,12 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 2. --สคริปต์ลบต้นไม้ (รอโหลด 4 วินาที)
+-- 2. เรียกใช้งานสคริปต์แยก (ซ่อนต้นไม้เพื่อลดแลค)
 -- ==========================================
-task.spawn(function()
-    print("⏳ กำลังรอ 8 วินาทีเพื่อเคลียร์ต้นไม้...")
-    task.wait(8)
-    
-    local Workspace = game:GetService("Workspace")
-    local gardensFolder = Workspace:FindFirstChild("Gardens")
-    
-    if gardensFolder then
-        for _, plot in pairs(gardensFolder:GetChildren()) do
-            local plantsFolder = plot:FindFirstChild("Plants")
-            if plantsFolder then
-                -- 1. ลบของเก่าที่โหลดมาตอนเริ่ม
-                plantsFolder:ClearAllChildren()
-                
-                -- 2. ดักลบของใหม่ที่อาจจะเกิดเพิ่ม (ป้องกันต้นไม้โผล่มาใหม่)
-                plantsFolder.ChildAdded:Connect(function(child)
-                    task.wait(0.1) -- รอให้โมเดลโหลดสมบูรณ์แล้วลบทันที
-                    child:Destroy()
-                end)
-                
-                print("🗑️ เคลียร์ต้นไม้ใน " .. plot.Name .. " เรียบร้อยแล้ว (รวมระบบดักลบใหม่)")
-            end
-        end
-    else
-        print("❌ หาโฟลเดอร์ Gardens ไม่เจอตอนกำลังจะลบต้นไม้")
-    end
+-- ดึงระบบซ่อนต้นไม้จากไฟล์แยกที่คุณสร้างไว้บน GitHub มาทำงานร่วมกันแบบสะอาดตา
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/kdkddkod57-lab/auto-gag2/main/hideplants.lua"))()
 end)
-
 
 -- ==========================================
 -- 3. สคริปต์ Rollback & UI
