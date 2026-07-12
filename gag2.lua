@@ -20,59 +20,6 @@ local TeleportService = game:GetService("TeleportService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
-
--- ==========================================
--- 🌀 [ระบบ ข้ามหน้าโหลดเกมอัตโนมัติ]
--- ==========================================
-pcall(function()
-    local ReplicatedFirst = game:GetService("ReplicatedFirst")
-    ReplicatedFirst:RemoveDefaultLoadingScreen()
-    
-    -- ค้นหาและดักลบ UI โหลดของตัวเกม
-    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local IntroGui = PlayerGui:FindFirstChild("IntroGui") or PlayerGui:FindFirstChild("LoadingGui")
-    if IntroGui then IntroGui:Destroy() end
-end)
-
--- ==========================================
--- 🧱 [ระบบ Noclip เดิน/บินทะลุกำแพงกันติดบั๊ก]
--- ==========================================
-task.spawn(function()
-    RunService.Stepped:Connect(function()
-        pcall(function()
-            if LocalPlayer.Character then
-                for _, part in pairs(LocalPlayer.Character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end)
-    end)
-end)
-
--- ==========================================
--- 🔍 [ฟังก์ชันช่วยแปลงและดักจับเวลาบนจอเกม]
--- ==========================================
-local function GetInGameTime()
-    local timeSeconds = 999 -- ค่าเริ่มต้นให้เป็นกลางวันไว้ก่อนหากหา UI ไม่เจอ
-    pcall(function()
-        -- ⚠️ หากเข้าเกมแล้วเวลาไม่ทำงาน ให้ตรวจสอบชื่อโฟลเดอร์ UI ตัวเลขของเกมแล้วแก้ไข 2 บรรทัดนี้ครับ
-        local ScreenGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("MainGui") 
-        local TimeLabel = ScreenGui and ScreenGui:FindFirstChild("TimeLabel") 
-        
-        if TimeLabel and TimeLabel.Text then
-            local text = TimeLabel.Text -- ดึงข้อความเช่น "02:30" หรือ "07:30"
-            local min, sec = text:match("(%d+):(%d+)")
-            if min and sec then
-                timeSeconds = (tonumber(min) * 60) + tonumber(sec)
-            end
-        end
-    end)
-    return timeSeconds
-end
 
 -- ==========================================
 -- 1. สคริปต์กดปุ่มตอนหน้าโหลดเกม
@@ -96,7 +43,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 2. สคริปต์ลบต้นไม้ (รอโหลดเกม 8 วินาที)
+-- 2. สคริปต์ลบต้นไม้ (รอโหลดเกม 4 วินาที)
 -- ==========================================
 task.spawn(function()
     print("⏳ กำลังรอ 8 วินาทีเพื่อโหลดต้นไม้...")
@@ -205,9 +152,6 @@ task.spawn(function()
     local PacketRemote = RemoteEvent
     local WATERING_EVENT_ID = 67
     local isFlying = false
-    
-    local OriginalWaterInterval = Config.WaterInterval
-    local EscapePos = Config.StandPosition + Vector3.new(20, 0, 20)
 
     -- ฟังก์ชันถือของ
     local function equipToolByName(toolName)
@@ -231,7 +175,7 @@ task.spawn(function()
         return nil
     end
 
-    -- 🔍 ฟังก์ชันเช็คสปริงเกอร์ในโฟลเดอร์
+    -- 🔍 ฟังก์ชันเช็คว่ามีสปริงเกอร์อยู่ในโฟลเดอร์หรือไม่
     local function hasSprinklerAt(plot, position)
         local sprinklersFolder = plot and plot:FindFirstChild("Sprinklers")
         if not sprinklersFolder then return false end
@@ -252,7 +196,7 @@ task.spawn(function()
         local distance = (root.Position - targetPos).Magnitude
         if distance <= 3 then isFlying = false return end 
         local duration = distance / Config.FlySpeed
-        
+        print("[Auto Return] บินกลับจุดยืนทันที! ระยะทาง: " .. math.floor(distance) .. " studs")
         local bodyVelocity = Instance.new("BodyVelocity")
         bodyVelocity.Velocity = Vector3.new(0, 0, 0)
         bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
@@ -273,108 +217,69 @@ task.spawn(function()
         isFlying = false
     end
 
-    -- ⏰ [ลูปตรวจสอบเวลาบนจอเพื่อจัดการวาร์ปหลบภัยกลางคืน]
-    task.spawn(function()
-        while task.wait(1) do
-            pcall(function()
-                local totalSeconds = GetInGameTime()
-                local char = LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                
-                -- เงื่อนไข: เวลาบนจอน้อยกว่าหรือเท่ากับ 2:30 (150 วิ) หรือช่วงฉุกเฉิน 0:30 (30 วิ)
-                if totalSeconds <= 150 or totalSeconds <= 30 then
-                    Config.WaterInterval = 99999 -- สั่งหยุดลูปการรดน้ำ
-                    if root and not isFlying then
-                        root.CFrame = CFrame.new(EscapePos)
-                        root.AssemblyLinearVelocity = Vector3.new(0,0,0)
-                    end
-                -- เงื่อนไขกลางวัน: เวลามากกว่าหรือเท่ากับ 7:30 (450 วิ)
-                elseif totalSeconds >= 450 then
-                    if Config.WaterInterval == 99999 then
-                        Config.WaterInterval = OriginalWaterInterval -- ปลดล็อกเวลารดน้ำกลับมาปกติ
-                    end
-                end
-            end)
-        end
-    end)
-
-    -- เริ่มต้นบินไปจุดฟาร์ม
-    local currentSec = GetInGameTime()
-    if currentSec >= 450 then
-        flyToPosition(Config.StandPosition)
-    end
+    -- บินไปจุดยืนเริ่มต้น
+    flyToPosition(Config.StandPosition)
     task.wait(0.5)
     
     local gardens = Workspace:FindFirstChild("Gardens")
     local plot = gardens and gardens:FindFirstChild("Plot" .. tostring(TARGET_PLOT_ID))
     
-    -- ลูปเช็คสถานะตัวละครกันตาย/กระเด็นหลุดตำแหน่ง (เฉพาะช่วงกลางวัน)
+    -- ลูปเช็คสถานะตัวละครกันตาย/กระเด็น
     task.spawn(function()
         while true do
-            local totalSeconds = GetInGameTime()
-            if totalSeconds >= 450 then -- ทำงานเฉพาะเวลากลางวัน
-                local char = LocalPlayer.Character
-                local humanoid = char and char:FindFirstChild("Humanoid")
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                if not char or not humanoid or humanoid.Health <= 0 or not root then
-                    LocalPlayer.CharacterAdded:Wait()
-                    task.wait(0.5)
-                    flyToPosition(Config.StandPosition)
-                elseif (root.Position - Config.StandPosition).Magnitude > 8 and not isFlying then
-                    flyToPosition(Config.StandPosition)
-                end
+            local char = LocalPlayer.Character
+            local humanoid = char and char:FindFirstChild("Humanoid")
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not char or not humanoid or humanoid.Health <= 0 or not root then
+                LocalPlayer.CharacterAdded:Wait()
+                task.wait(0.5)
+                flyToPosition(Config.StandPosition)
+            elseif (root.Position - Config.StandPosition).Magnitude > 8 and not isFlying then
+                flyToPosition(Config.StandPosition)
             end
             task.wait(0.1)
         end
     end)
     
-    print("[Auto Farm] เริ่มทำงานดักระบบเวลาจากบนหน้าจอแล้ว!")
+    print("[Auto Farm] เริ่มทำงาน! เช็คสปริงเกอร์และรดน้ำทุกๆ " .. Config.WaterInterval .. " วินาที...")
     local startTime = os.clock()
     
     -- 🔄 ลูปการทำงานหลัก (รดน้ำ + เช็คสปริงเกอร์)
     while (os.clock() - startTime) < Config.TotalDuration do
-        local totalSeconds = GetInGameTime()
         
-        -- จะทำงานรดน้ำและปักสปริงเกอร์เฉพาะตอนกลางวันเท่านั้น (>= 7:30)
-        if totalSeconds >= 450 and Config.WaterInterval ~= 99999 then
-            
-            -- 💡 1. เช็คและปักสปริงเกอร์
-            if plot then
-                if not hasSprinklerAt(plot, Config.ActionPosition) then
-                    print("[Auto Farm] ตรวจพบว่าสปริงเกอร์หายไป! กำลังทำการวางใหม่...")
-                    local sprinklerTool = equipToolByName("Super Sprinkler")
-                    if sprinklerTool then
-                        Networking.Place.PlaceSprinkler:Fire(Config.ActionPosition, "Super Sprinkler", sprinklerTool, TARGET_PLOT_ID)
-                        task.wait(1)
-                    end
+        -- 💡 1. เช็คสปริงเกอร์ตลอดเวลา ถ้าหายให้วางใหม่ทันที
+        if plot then
+            if not hasSprinklerAt(plot, Config.ActionPosition) then
+                print("[Auto Farm] ตรวจพบว่าสปริงเกอร์หายไป! กำลังทำการวางใหม่...")
+                local sprinklerTool = equipToolByName("Super Sprinkler")
+                if sprinklerTool then
+                    Networking.Place.PlaceSprinkler:Fire(Config.ActionPosition, "Super Sprinkler", sprinklerTool, TARGET_PLOT_ID)
+                    task.wait(1) -- รอแป๊บนึงหลังวางเสร็จ
                 end
             end
+        end
 
-            -- 💦 2. ถือบัวรดน้ำแล้วรด
-            local wateringTool = equipToolByName("Super Watering Can")
-            if wateringTool then
-                pcall(function()
-                    local toolName = wateringTool.Name
-                    local b = buffer.create(15 + #toolName)
-                    buffer.writeu16(b, 0, WATERING_EVENT_ID)
-                    buffer.writef32(b, 2, Config.ActionPosition.X)
-                    buffer.writef32(b, 6, Config.ActionPosition.Y)
-                    buffer.writef32(b, 10, Config.ActionPosition.Z)
-                    buffer.writeu8(b, 14, #toolName)
-                    buffer.writestring(b, 15, toolName)
-                    PacketRemote:FireServer(b, { wateringTool })
-                end)
-            end
+        -- 💦 2. ถือบัวรดน้ำแล้วรด
+        local wateringTool = equipToolByName("Super Watering Can")
+        if wateringTool then
+            pcall(function()
+                local toolName = wateringTool.Name
+                local b = buffer.create(15 + #toolName)
+                buffer.writeu16(b, 0, WATERING_EVENT_ID)
+                buffer.writef32(b, 2, Config.ActionPosition.X)
+                buffer.writef32(b, 6, Config.ActionPosition.Y)
+                buffer.writef32(b, 10, Config.ActionPosition.Z)
+                buffer.writeu8(b, 14, #toolName)
+                buffer.writestring(b, 15, toolName)
+                PacketRemote:FireServer(b, { wateringTool })
+            end)
         end
         
-        task.wait(Config.WaterInterval == 99999 and 1 or Config.WaterInterval)
+        -- รอเวลาตามรอบ
+        task.wait(Config.WaterInterval)
     end
     
-    -- 🔄 ระบบ Rejoin เข้าเซิร์ฟเวอร์เดิม
-print("[Auto Farm] ครบเวลาแล้ว! กำลังทำการ Rejoin เข้าเซิร์ฟเวอร์เดิม...")
-task.wait(1)
-pcall(function() 
-    TeleportService:Teleport(game.PlaceId, LocalPlayer) 
-end)
-    end)
+    print("[Auto Farm] ครบเวลาแล้ว! กำลังทำการ Rejoin เซิร์ฟเวอร์ใหม่...")
+    task.wait(1)
+    pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
 end)
