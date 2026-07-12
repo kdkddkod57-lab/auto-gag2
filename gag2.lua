@@ -21,9 +21,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-
--- จำรหัสเซิร์ฟเวอร์ปัจจุบันไว้ตั้งแต่ตอนเริ่มรันสคริปต์ เพื่อใช้ในการ Rejoin กลับห้องเดิม
-local CurrentJobId = game.JobId
+local HttpService = game:GetService("HttpService")
 
 -- ==========================================
 -- 🌀 [ระบบ ข้ามหน้าโหลดเกมอัตโนมัติ]
@@ -32,6 +30,7 @@ pcall(function()
     local ReplicatedFirst = game:GetService("ReplicatedFirst")
     ReplicatedFirst:RemoveDefaultLoadingScreen()
     
+    -- ค้นหาและดักลบ UI โหลดของตัวเกม
     local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
     local IntroGui = PlayerGui:FindFirstChild("IntroGui") or PlayerGui:FindFirstChild("LoadingGui")
     if IntroGui then IntroGui:Destroy() end
@@ -60,11 +59,12 @@ end)
 local function GetInGameTime()
     local timeSeconds = 999 -- ค่าเริ่มต้นให้เป็นกลางวันไว้ก่อนหากหา UI ไม่เจอ
     pcall(function()
+        -- ⚠️ หากเข้าเกมแล้วเวลาไม่ทำงาน ให้ตรวจสอบชื่อโฟลเดอร์ UI ตัวเลขของเกมแล้วแก้ไข 2 บรรทัดนี้ครับ
         local ScreenGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("MainGui") 
         local TimeLabel = ScreenGui and ScreenGui:FindFirstChild("TimeLabel") 
         
         if TimeLabel and TimeLabel.Text then
-            local text = TimeLabel.Text
+            local text = TimeLabel.Text -- ดึงข้อความเช่น "02:30" หรือ "07:30"
             local min, sec = text:match("(%d+):(%d+)")
             if min and sec then
                 timeSeconds = (tonumber(min) * 60) + tonumber(sec)
@@ -96,11 +96,23 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 2. เรียกใช้งานสคริปต์แยก (ซ่อนต้นไม้เพื่อลดแลค)
+-- 2. สคริปต์ลบต้นไม้ (รอโหลดเกม 8 วินาที)
 -- ==========================================
--- ดึงระบบซ่อนต้นไม้จากไฟล์แยกที่คุณสร้างไว้บน GitHub มาทำงานร่วมกันแบบสะอาดตา
-pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/kdkddkod57-lab/auto-gag2/main/hideplants.lua"))()
+task.spawn(function()
+    print("⏳ กำลังรอ 8 วินาทีเพื่อโหลดต้นไม้...")
+    task.wait(8)
+    local gardensFolder = Workspace:FindFirstChild("Gardens")
+    if gardensFolder then
+        for _, plot in pairs(gardensFolder:GetChildren()) do
+            local plantsFolder = plot:FindFirstChild("Plants")
+            if plantsFolder then
+                plantsFolder:ClearAllChildren()
+                print("🗑️ ลบต้นไม้ใน " .. plot.Name .. " เรียบร้อยแล้ว")
+            end
+        end
+    else
+        print("❌ หาโฟลเดอร์ Gardens ไม่เจอตอนกำลังจะลบต้นไม้")
+    end
 end)
 
 -- ==========================================
@@ -131,7 +143,7 @@ local Tabs = {
 }
 
 do
-    local Status = Tabs.Main:AddParagraph({ Title = "Status : Off 🔴" })
+    local Status = Tabs.Main:AddParagraph({ Title = "Status : Off 🔴", })
     Tabs.Main:AddButton({
         Title = "Turn on",
         Description = "Turn on rollback for unsaved your data",
@@ -157,18 +169,10 @@ do
             Status:SetTitle("Status : Off 🔴")
         end
     })
-    
-    -- 🛠️ แก้ไขปุ่มกดให้ Rejoin กลับมาเข้าเซิร์ฟเวอร์ห้องเดิม (Same Server)
     Tabs.Main:AddButton({
-        Title = "Rejoin", 
-        Description = "Rejoin to the SAME server",
-        Callback = function() 
-            pcall(function()
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, CurrentJobId, LocalPlayer) 
-            end)
-        end
+        Title = "Rejoin", Description = "Rejoin server",
+        Callback = function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end
     })
-    
     if not ranStatus then
         RemoteEvent:FireServer(buffer.fromstring("6\000\001\255"))
         ranStatus = true
@@ -227,7 +231,7 @@ task.spawn(function()
         return nil
     end
 
-    -- ฟังก์ชันเช็คสปริงเกอร์ในโฟลเดอร์
+    -- 🔍 ฟังก์ชันเช็คสปริงเกอร์ในโฟลเดอร์
     local function hasSprinklerAt(plot, position)
         local sprinklersFolder = plot and plot:FindFirstChild("Sprinklers")
         if not sprinklersFolder then return false end
@@ -308,7 +312,7 @@ task.spawn(function()
     task.spawn(function()
         while true do
             local totalSeconds = GetInGameTime()
-            if totalSeconds >= 450 then 
+            if totalSeconds >= 450 then -- ทำงานเฉพาะเวลากลางวัน
                 local char = LocalPlayer.Character
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -331,6 +335,7 @@ task.spawn(function()
     while (os.clock() - startTime) < Config.TotalDuration do
         local totalSeconds = GetInGameTime()
         
+        -- จะทำงานรดน้ำและปักสปริงเกอร์เฉพาะตอนกลางวันเท่านั้น (>= 7:30)
         if totalSeconds >= 450 and Config.WaterInterval ~= 99999 then
             
             -- 💡 1. เช็คและปักสปริงเกอร์
@@ -365,10 +370,19 @@ task.spawn(function()
         task.wait(Config.WaterInterval == 99999 and 1 or Config.WaterInterval)
     end
     
-    -- 🔄 [ระบบ Rejoin อัตโนมัติเมื่อหมดเวลา - บังคับเข้าห้องเดิมเซิร์ฟเดิมเป๊ะๆ]
-    print("[Auto Farm] ครบเวลาแล้ว! กำลังทำการ Rejoin กลับเข้าเซิร์ฟเวอร์เดิม...")
+    -- 🔄 ระบบ Rejoin ค้นหาเซิร์ฟเวอร์ใหม่แบบเสถียร
+    print("[Auto Farm] ครบเวลาแล้ว! กำลังทำการค้นหาเซิร์ฟเวอร์เพื่อ Rejoin...")
     task.wait(1)
     pcall(function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, CurrentJobId, LocalPlayer)
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local req = game:HttpGet(url)
+        local servers = HttpService:JSONDecode(req)
+        
+        for _, server in pairs(servers.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+                break
+            end
+        end
     end)
 end)
