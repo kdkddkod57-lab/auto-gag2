@@ -116,12 +116,36 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 2. เรียกใช้งานสคริปต์แยก (ซ่อนต้นไม้เพื่อลดแลค)
+-- 2. --สคริปต์ลบต้นไม้ (รอโหลด 4 วินาที)
 -- ==========================================
--- ดึงระบบซ่อนต้นไม้จากไฟล์แยกที่คุณสร้างไว้บน GitHub มาทำงานร่วมกันแบบสะอาดตา
-pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/kdkddkod57-lab/auto-gag2/main/hideplants.lua"))()
+task.spawn(function()
+    print("⏳ กำลังรอ 8 วินาทีเพื่อเคลียร์ต้นไม้...")
+    task.wait(8)
+    
+    local Workspace = game:GetService("Workspace")
+    local gardensFolder = Workspace:FindFirstChild("Gardens")
+    
+    if gardensFolder then
+        for _, plot in pairs(gardensFolder:GetChildren()) do
+            local plantsFolder = plot:FindFirstChild("Plants")
+            if plantsFolder then
+                -- 1. ลบของเก่าที่โหลดมาตอนเริ่ม
+                plantsFolder:ClearAllChildren()
+                
+                -- 2. ดักลบของใหม่ที่อาจจะเกิดเพิ่ม (ป้องกันต้นไม้โผล่มาใหม่)
+                plantsFolder.ChildAdded:Connect(function(child)
+                    task.wait(0.1) -- รอให้โมเดลโหลดสมบูรณ์แล้วลบทันที
+                    child:Destroy()
+                end)
+                
+                print("🗑️ เคลียร์ต้นไม้ใน " .. plot.Name .. " เรียบร้อยแล้ว (รวมระบบดักลบใหม่)")
+            end
+        end
+    else
+        print("❌ หาโฟลเดอร์ Gardens ไม่เจอตอนกำลังจะลบต้นไม้")
+    end
 end)
+
 
 -- ==========================================
 -- 3. สคริปต์ Rollback & UI
