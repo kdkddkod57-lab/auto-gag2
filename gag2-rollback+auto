@@ -1,0 +1,99 @@
+-- [[ โค้ดระบบหลังบ้านที่ต้องเอาไปใส่ในไฟล์ gag2.lua ของคุณ ]]
+
+local Player = game:GetService("Players").LocalPlayer
+local Remote = game:GetService("ReplicatedStorage"):WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
+
+-- รอให้ค่าที่ผู้ใช้ตั้งค่าโหลดเข้ามาในระบบ
+repeat task.wait() until getgenv().AutoFarmConfig
+local Config = getgenv().AutoFarmConfig
+
+-- คำนวณจุดบินหนีตอนกลางคืนจากพิกัดที่ผู้ใช้ตั้งค่า (เฉียงออกไป 20 บล็อก)
+local FarmPos = Config.StandPosition
+local EscapePos = FarmPos + Vector3.new(20, 0, 20)
+local OriginalWaterInterval = Config.WaterInterval
+
+-- ⏰ [ระบบตรวจจับกลางวัน-กลางคืน + บังคับล็อกพิกัดหนีไปนอกสวน]
+task.spawn(function()
+    local Lighting = game:GetService("Lighting")
+    while task.wait() do
+        pcall(function()
+            local currentTime = Lighting.ClockTime
+            local Character = Player.Character
+            local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+            
+            if currentTime >= 18 or currentTime < 6 then
+                -- ตอนกลางคืน: สั่งหยุดบัวรดน้ำและล็อกตัวให้อยู่นอกสวน 20 บล็อก
+                Config.WaterInterval = 99999
+                if RootPart then
+                    RootPart.CFrame = CFrame.new(EscapePos)
+                    RootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end
+            else
+                -- ตอนกลางวัน: ปลดล็อกบัวให้รดน้ำตามเวลาที่ผู้ใช้ตั้งค่าไว้
+                if Config.WaterInterval == 99999 then
+                    Config.WaterInterval = OriginalWaterInterval
+                end
+            end
+        end)
+    end
+end)
+
+-- ⚙️ [ระบบวางสปริงเกอร์เฉพาะตอนกลางวันครั้งแรกที่ถึงสวน]
+task.spawn(function()
+    local deployed = false
+    while task.wait(1) do
+        if deployed then task.wait(5) continue end
+        
+        pcall(function()
+            local Lighting = game:GetService("Lighting")
+            if Lighting.ClockTime < 18 and Lighting.ClockTime >= 6 then
+                local Character = Player.Character
+                local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+                
+                if RootPart then
+                    local distance = (RootPart.Position - FarmPos).Magnitude
+                    if distance <= 5 then
+                        local backpack = Player:WaitForChild("Backpack")
+                        local humanoid = Character:WaitForChild("Humanoid")
+                        local sprinkler = backpack:FindFirstChild("Super Sprinkler") or Character:FindFirstChild("Super Sprinkler")
+                        
+                        if sprinkler then
+                            Config.WaterInterval = 99999
+                            task.wait(0.5)
+                            
+                            if sprinkler.Parent == backpack then humanoid:EquipTool(sprinkler) end
+                            task.wait(0.3)
+                            
+                            local args = {
+                                buffer.fromstring("\020\000$u\206Cd\193\014C\137A\198\193\015Super Sprinkler\002"),
+                                { sprinkler }
+                            }
+                            Remote:FireServer(unpack(args))
+                            print("[SYSTEM] ถึงสวนแล้ว! ปักสปริงเกอร์เรียบร้อย")
+                            
+                            task.wait(0.5)
+                            Config.WaterInterval = OriginalWaterInterval
+                            deployed = true
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- 🔄 [ระบบ Rejoin ย้ายเซิร์ฟเวอร์อัตโนมัติ]
+task.spawn(function()
+    task.wait(Config.TotalDuration)
+    local TeleportService = game:GetService("TeleportService")
+    local HttpService = game:GetService("HttpService")
+    pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        for _, server in pairs(servers.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Player)
+                break
+            end
+        end
+    end)
+end)
