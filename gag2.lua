@@ -1,4 +1,24 @@
 -- ==========================================
+-- [ แก้บั๊กค้าง 25% ] บังคับข้ามการรอ Assets
+-- ==========================================
+pcall(function()
+    local ReplicatedFirst = game:GetService("ReplicatedFirst")
+    ReplicatedFirst:RemoveDefaultLoadingScreen()
+    
+    -- บังคับปิด UI โหลดเกมให้เร็วที่สุด
+    if game:IsLoaded() == false then
+        game.Loaded:Wait()
+    end
+    
+    local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    for _, gui in pairs(PlayerGui:GetChildren()) do
+        if gui:IsA("ScreenGui") and (gui.Name:lower():find("load") or gui.Name:lower():find("intro")) then
+            gui:Destroy()
+        end
+    end
+end)
+
+-- ==========================================
 -- [ โหลดการตั้งค่าจาก getgenv ]
 -- ==========================================
 local Config = getgenv().AutoFarmConfig or {
