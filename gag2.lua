@@ -370,19 +370,11 @@ task.spawn(function()
         task.wait(Config.WaterInterval == 99999 and 1 or Config.WaterInterval)
     end
     
-    -- 🔄 ระบบ Rejoin ค้นหาเซิร์ฟเวอร์ใหม่แบบเสถียร
-    print("[Auto Farm] ครบเวลาแล้ว! กำลังทำการค้นหาเซิร์ฟเวอร์เพื่อ Rejoin...")
-    task.wait(1)
-    pcall(function()
-        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        local req = game:HttpGet(url)
-        local servers = HttpService:JSONDecode(req)
-        
-        for _, server in pairs(servers.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
-                break
-            end
-        end
+    -- 🔄 ระบบ Rejoin เข้าเซิร์ฟเวอร์เดิม
+print("[Auto Farm] ครบเวลาแล้ว! กำลังทำการ Rejoin เข้าเซิร์ฟเวอร์เดิม...")
+task.wait(1)
+pcall(function() 
+    TeleportService:Teleport(game.PlaceId, LocalPlayer) 
+end)
     end)
 end)
