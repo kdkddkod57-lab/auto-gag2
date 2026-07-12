@@ -1,13 +1,11 @@
--- [[ โค้ดระบบหลังบ้านที่ต้องเอาไปใส่ในไฟล์ gag2.lua ของคุณ ]]
-
 local Player = game:GetService("Players").LocalPlayer
 local Remote = game:GetService("ReplicatedStorage"):WaitForChild("SharedModules"):WaitForChild("Packet"):WaitForChild("RemoteEvent")
 
--- รอให้ค่าที่ผู้ใช้ตั้งค่าโหลดเข้ามาในระบบ
+-- รอจนกว่าผู้ใช้งานจะโหลดค่าคอนฟิกเสร็จ
 repeat task.wait() until getgenv().AutoFarmConfig
 local Config = getgenv().AutoFarmConfig
 
--- คำนวณจุดบินหนีตอนกลางคืนจากพิกัดที่ผู้ใช้ตั้งค่า (เฉียงออกไป 20 บล็อก)
+-- ตั้งค่าตัวแปรหลัก
 local FarmPos = Config.StandPosition
 local EscapePos = FarmPos + Vector3.new(20, 0, 20)
 local OriginalWaterInterval = Config.WaterInterval
@@ -22,14 +20,14 @@ task.spawn(function()
             local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
             
             if currentTime >= 18 or currentTime < 6 then
-                -- ตอนกลางคืน: สั่งหยุดบัวรดน้ำและล็อกตัวให้อยู่นอกสวน 20 บล็อก
+                -- 🌙 ตอนกลางคืน: สั่งหยุดบัวรดน้ำชั่วคราว และวาร์ปหนีออกจากสวน 20 บล็อก
                 Config.WaterInterval = 99999
                 if RootPart then
                     RootPart.CFrame = CFrame.new(EscapePos)
                     RootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 end
             else
-                -- ตอนกลางวัน: ปลดล็อกบัวให้รดน้ำตามเวลาที่ผู้ใช้ตั้งค่าไว้
+                -- ☀️ ตอนกลางวัน: ปลดล็อกให้บัวรดน้ำกลับมาทำงานตามเวลาที่ผู้ใช้ตั้งไว้ด้านบน
                 if Config.WaterInterval == 99999 then
                     Config.WaterInterval = OriginalWaterInterval
                 end
@@ -46,6 +44,7 @@ task.spawn(function()
         
         pcall(function()
             local Lighting = game:GetService("Lighting")
+            -- ต้องเป็นตอนกลางวันเท่านั้นถึงจะยอมให้ปักสปริงเกอร์
             if Lighting.ClockTime < 18 and Lighting.ClockTime >= 6 then
                 local Character = Player.Character
                 local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
@@ -82,13 +81,19 @@ task.spawn(function()
     end
 end)
 
--- 🔄 [ระบบ Rejoin ย้ายเซิร์ฟเวอร์อัตโนมัติ]
+-- 🔄 [ระบบ Rejoin ย้ายเซิร์ฟเวอร์อัตโนมัติตามเวลาที่กำหนดไว้ข้างหน้า]
 task.spawn(function()
+    -- รอให้ครบตามเวลาที่คนใช้ระบุไว้ในช่อง TotalDuration
     task.wait(Config.TotalDuration)
+    
     local TeleportService = game:GetService("TeleportService")
     local HttpService = game:GetService("HttpService")
+    
     pcall(function()
-        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local req = game:HttpGet(url)
+        local servers = HttpService:JSONDecode(req)
+        
         for _, server in pairs(servers.data) do
             if server.playing < server.maxPlayers and server.id ~= game.JobId then
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Player)
