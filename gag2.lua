@@ -63,12 +63,11 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 3. สคริปต์ Rollback & UI
+-- 3. สคริปต์ UI (ตัดระบบ Rollback ออกแล้ว)
 -- ==========================================
 local SharedModules = ReplicatedStorage:WaitForChild("SharedModules")
 local Packet = SharedModules:WaitForChild("Packet")
 local RemoteEvent = Packet:WaitForChild("RemoteEvent")
-local ranStatus = false
 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
@@ -90,41 +89,13 @@ local Tabs = {
 }
 
 do
-    local Status = Tabs.Main:AddParagraph({ Title = "Status : Off 🔴", })
+    Tabs.Main:AddParagraph({ Title = "Welcome to Autofarm Script", Content = "Rollback function has been removed." })
+    
     Tabs.Main:AddButton({
-        Title = "Turn on",
-        Description = "Turn on rollback for unsaved your data",
-        Callback = function()
-            if ranStatus then
-                Fluent:Notify({ Title = "Alert", Content = "Rollback is already ON", Duration = 8 })
-            else
-                RemoteEvent:FireServer(buffer.fromstring("6\000\001\255"))
-                ranStatus = true
-                Status:SetTitle("Status : On 🟢")
-            end
-        end
-    })
-    Tabs.Main:AddButton({
-        Title = "Turn off",
-        Description = "Turn off rollback for save your data",
-        Callback = function()
-            for i = 1, 3 do
-                RemoteEvent:FireServer(buffer.fromstring("6\000\000"))
-                task.wait()
-            end
-            ranStatus = false
-            Status:SetTitle("Status : Off 🔴")
-        end
-    })
-    Tabs.Main:AddButton({
-        Title = "Rejoin", Description = "Rejoin server",
+        Title = "Rejoin", 
+        Description = "Rejoin server",
         Callback = function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end
     })
-    if not ranStatus then
-        RemoteEvent:FireServer(buffer.fromstring("6\000\001\255"))
-        ranStatus = true
-        Status:SetTitle("Status : On 🟢")
-    end
 end
 
 SaveManager:SetLibrary(Fluent)
@@ -136,7 +107,7 @@ SaveManager:SetFolder("FluentScriptHub/specific-game")
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
-Fluent:Notify({ Title = "Fluent", Content = "The script has been loaded & Rollback is ON.", Duration = 8 })
+Fluent:Notify({ Title = "Fluent", Content = "The script has been loaded.", Duration = 8 })
 SaveManager:LoadAutoloadConfig()
 
 -- ==========================================
