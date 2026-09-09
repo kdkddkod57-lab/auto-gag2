@@ -1,0 +1,911 @@
+-- [[ Rscripts Risk Notice ]] --
+-- This script is not verified by rscripts.net. Deal with caution.
+
+-- [[ End Rscripts Risk Notice ]] --
+
+-- Ouroboros Hub | Defeat Anime RNG
+local repo = "https://raw.githubusercontent.com/joustingmatch/ObsidianUltra/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local Options = Library.Options
+local Toggles = Library.Toggles
+Library.Scheme.BackgroundColor = Color3.fromRGB(13,13,13)
+Library.Scheme.MainColor = Color3.fromRGB(40,40,40)
+Library.Scheme.OutlineColor = Color3.fromRGB(58,58,58)
+Library.Scheme.AccentColor = Color3.fromRGB(80,101,242)
+Library.Scheme.FontColor = Color3.fromRGB(255,255,255)
+pcall(function() Library.Scheme.Font = Font.fromEnum(Enum.Font.Gotham) end)
+local gameName = "[UPD!] Defeat Anime RNG"
+pcall(function()
+    local info = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+    if info and info.Name then gameName = info.Name end
+end)
+
+local Window = Library:CreateWindow({
+    Title = "Ouroboros Hub",
+    Footer = {
+        "Ouroboros Hub | ",
+        { Text = "discord.gg/2TYQ9yw5x", Copyable = true, CopyText = "https://discord.gg/2TYQ9yw5x" },
+        ", " .. gameName,
+    },
+    CopyableFooter = true,
+    Icon = nil,
+    ShowCustomCursor = true,
+    NotifySide = "Right",
+    SearchBarSize = UDim2.fromScale(0.35, 1),
+    FuzzySearch = true,
+    SearchValues = true,
+    Minimizable = true,
+    ToggleKeybind = Enum.KeyCode.RightShift,
+    Center = true,
+    AutoShow = true,
+    Resizable = true,
+    EnableSidebarResize = true,
+    CornerRadius = 10,
+    Animations = { ToggleWindow=false, TabSwitch=false, Groupbox=false, Dropdown=false, KeyPicker=false, SubTabUnderline=true },
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Name="Main", Icon="layout-dashboard", Description="Dashboard" }),
+    Farming = Window:AddTab({ Name="Farming", Icon="sprout", Description="Farming & Resources" }),
+    Inventory = Window:AddTab({ Name="Inventory", Icon="backpack", Description="Units, Weapons & Upgrades" }),
+    Rebirth = Window:AddTab({ Name="Rebirth", Icon="crown", Description="Prestige" }),
+    Settings = Window:AddTab({ Name="Settings", Icon="settings", Description="Config & System" }),
+}
+
+local RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents",9e9)
+local Databases = ReplicatedStorage:WaitForChild("Databases",9e9)
+local function getRemote(name)
+    local ok, r = pcall(function() return RemoteEvents:WaitForChild(name, 2) end)
+    if ok and r then return r end
+    return nil
+end
+
+local Remotes = {
+    ConfirmedRoll = getRemote("ConfirmedRollRequestEvent"),
+    CollectCash = getRemote("CollectCashEvent"),
+    ZonePurchase = getRemote("ZonePurchaseRequestEvent"),
+    ZoneTravel = getRemote("ZoneTravelRequestEvent"),
+    Upgrade = getRemote("UpgradeRequestEvent"),
+    PlayerAttack = getRemote("PlayerAttackEvent"),
+    BuyWeapon = getRemote("BuyWeaponRequestFunction"),
+    EquipWeapon = getRemote("EquipWeaponRequestFunction"),
+    Fuse = getRemote("FuseRequestFunction"),
+    EquipBest = getRemote("EquipBestRequestFunction"),
+    PickUpAll = getRemote("PickUpAllRequestFunction"),
+    GetItemInv = getRemote("GetItemInventoryFunction"),
+    UsePotion = getRemote("UsePotionRequestFunction"),
+    UseAbility = getRemote("UseAbilityRequestFunction"),
+    SetAutoUse = getRemote("SetAutoUseRequestFunction"),
+    SellUnits = getRemote("SellUnitsRequestFunction"),
+    Evolve = getRemote("EvolveRequestFunction"),
+    ClaimEvolve = getRemote("ClaimEvolveRequestFunction"),
+    ClaimDaily = getRemote("ClaimDailyRewardFunction"),
+    GetDailyStatus = getRemote("GetDailyRewardStatusFunction"),
+    ClaimGroup = getRemote("ClaimGroupRewardFunction"),
+    InfiniteTower = getRemote("InfiniteTowerEnterRequestFunction"),
+    ChallengeStart = getRemote("ChallengeStartRequestFunction"),
+    ClaimEventQuest = getRemote("ClaimEventQuestRequestFunction"),
+    Prestige = getRemote("PrestigeEvent"),
+}
+
+local UnitDatabase = nil
+pcall(function() UnitDatabase = require(Databases:WaitForChild("UnitDatabase",5)) end)
+local WeaponsDatabase = nil
+pcall(function() WeaponsDatabase = require(Databases:WaitForChild("WeaponsDatabase",5)) end)
+local UpgradeConfig = nil
+pcall(function() UpgradeConfig = require(Databases:WaitForChild("UpgradeConfig",5)) end)
+local ZoneDatabase = nil
+pcall(function() ZoneDatabase = require(Databases:WaitForChild("ZoneDatabase",5)) end)
+local InventoryConfig = nil
+pcall(function() InventoryConfig = require(Databases:WaitForChild("InventoryConfig",5)) end)
+local XPConfig = nil
+pcall(function() XPConfig = require(Databases:WaitForChild("XPConfig",5)) end)
+
+local RarityList = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Divine", "Cosmic"}
+local WeaponList = {"Katana", "Zangetsu", "Soul Splitter", "Guts", "Buster", "Scissor", "Sanctity", "Excalibur", "Death Scythe", "Sun Axe", "Ghoul Scythe", "Rhaast", "Fan", "Yoru", "Dark Blue Sword", "Blue Greatsword", "Gae Bolg", "Serrated Katana", "Doujina", "Executioner", "Starked Axe", "Shogun Blade"}
+local WeaponBestFirst = {"Shogun Blade", "Starked Axe", "Executioner", "Doujina", "Serrated Katana", "Gae Bolg", "Blue Greatsword", "Dark Blue Sword", "Yoru", "Fan", "Rhaast", "Ghoul Scythe", "Sun Axe", "Death Scythe", "Excalibur", "Sanctity", "Scissor", "Buster", "Guts", "Soul Splitter", "Zangetsu", "Katana"}
+local ZoneList = {"Wisteria", "Fire City", "Flanek", "Hollowed World", "Sand Island", "Hage", "Death Castle", "Candy Island", "Stadium", "Curse College", "Shibuya", "Hell King", "Dungeon", "Wano", "Hidden City", "Shrine", "Red Gate"}
+local PotionList = {"Gold Potion", "Lock Potion", "XP Potion"}
+local QuestIdsByTier = { Regular = {"RegularBosses", "RegularChallenge", "RegularBuyUnits"}, Daily = {"DailyBosses", "DailyChallenge", "DailyKills", "DailyWaves"}, Event = {"EventPlaytime", "EventKills", "EventChallenges", "EventWaves"} }
+local QuestTierList = {"Regular", "Daily", "Event"}
+local ChallengeTierList = {"Regular", "Daily", "Weekly"}
+local EvolveList = {"Isagi", "Jinwoo", "Gojo", "Goku", "Asta", "Luffy", "Reze"}
+
+local Loops = {}
+local function startLoop(id, fn, interval)
+    if Loops[id] and Loops[id].Running then return end
+    Loops[id] = { Running = true }
+    task.spawn(function()
+        while Loops[id] and Loops[id].Running do
+            if Library.Unloaded then break end
+            local ok, err = pcall(fn)
+            if not ok then warn("[Ouroboros] " .. id .. " err: ", err) end
+            task.wait(interval or 1)
+        end
+    end)
+end
+
+local function stopLoop(id)
+    if Loops[id] then Loops[id].Running = false end
+end
+
+Library:OnUnload(function()
+    for k, v in pairs(Loops) do v.Running = false end
+end)
+
+local function notify(title, desc, time) pcall(function() Library:Notify({ Title=title, Description=desc, Time=time or 3 }) end) end
+local function money() return LocalPlayer:GetAttribute("Money") or 0 end
+
+local function selectedSet(opt)
+    local sel = opt and opt.Value or {}
+    if type(sel) == "string" then return {[sel]=true} end
+    if type(sel) == "table" then
+        local out = {}
+        for k, v in pairs(sel) do
+            if type(k) == "string" and v == true then return sel end
+            if type(v) == "string" then out[v] = true end
+        end
+        return out
+    end
+    return {}
+end
+
+local function unitRarity(name)
+    if UnitDatabase and UnitDatabase[name] and UnitDatabase[name].Rarity then return UnitDatabase[name].Rarity end
+    return nil
+end
+
+local function getUnitTools()
+    local tools = {}
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:GetAttribute("UnitId") ~= nil then table.insert(tools, t) end
+        end
+    end
+    return tools
+end
+
+local function unitCount()
+    local n = 0
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:GetAttribute("UnitId") ~= nil then n = n + 1 end
+        end
+    end
+    return n
+end
+
+local function unitCap()
+    local cap = 99
+    if InventoryConfig and InventoryConfig.UnitCap then cap = InventoryConfig.UnitCap end
+    return cap + (LocalPlayer:GetAttribute("ExtraUnitCapacity") or 0)
+end
+
+local function findToolByName(name)
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t.Name == name and t:GetAttribute("UnitId") ~= nil then return t end
+        end
+    end
+    return nil
+end
+
+local function getOwnBase()
+    local ok, bases = pcall(function() return workspace:WaitForChild("Bases", 3) end)
+    if not ok or not bases then return nil end
+    for _, b in ipairs(bases:GetChildren()) do
+        local o = b:FindFirstChild("Owner")
+        if o and tostring(o.Value) == tostring(LocalPlayer.UserId) then return b end
+    end
+    return nil
+end
+
+local function getOwnPlacedUnits()
+    local units = {}
+    local base = getOwnBase()
+    if not base then return units end
+    for _, d in ipairs(base:GetDescendants()) do
+        if d:IsA("Model") and string.sub(d.Name, 1, 11) == "PlacedUnit_" then table.insert(units, d) end
+    end
+    return units
+end
+
+local function getRollButton()
+    local base = getOwnBase()
+    if not base then return nil end
+    local rs = base:FindFirstChild("RollStation")
+    if not rs then return nil end
+    local btn = rs:FindFirstChild("Button")
+    local model = btn and btn:FindFirstChild("Model")
+    local rb = model and model:FindFirstChild("RollButton")
+    return rb
+end
+
+local function getStandUnits()
+    local out = {}
+    local base = getOwnBase()
+    if not base then return out end
+    local rs = base:FindFirstChild("RollStation")
+    if not rs then return out end
+    for _, m in ipairs(rs:GetChildren()) do
+        if m:IsA("Model") and m.Name ~= "Button" and m.Name ~= "pity" then
+            local prompt = nil
+            for _, d in ipairs(m:GetDescendants()) do
+                if d:IsA("ProximityPrompt") and d.ActionText == "Collect" then prompt = d break end
+            end
+            if prompt then
+                local price = nil
+                if UnitDatabase and UnitDatabase[m.Name] and UnitDatabase[m.Name].Price then
+                    price = UnitDatabase[m.Name].Price
+                end
+                table.insert(out, { model = m, name = m.Name, prompt = prompt, price = price })
+            end
+        end
+    end
+    return out
+end
+
+local NEVER_AUTO_DESTROY = { Mythic=true, Secret=true, Divine=true, Cosmic=true, Limited=true, Exclusive=true }
+
+local function parsePrice(str)
+    if not str then return 100000 end
+    local s = tostring(str):upper():gsub(",", ""):gsub("Y", ""):gsub("%$", ""):gsub(" ", "")
+    local mult = 1
+    local suf = s:sub(-1)
+    if suf == "K" then mult = 1000 s = s:sub(1, -2)
+    elseif suf == "M" then mult = 1000000 s = s:sub(1, -2)
+    elseif suf == "B" then mult = 1000000000 s = s:sub(1, -2) end
+    local n = tonumber(s)
+    if not n then return 100000 end
+    return math.floor(n * mult)
+end
+
+local function maxBuyPrice()
+    local v = Options.MaxBuyPrice and Options.MaxBuyPrice.Value
+    return parsePrice(v)
+end
+
+local function mythicOnStand()
+    local ok, g = pcall(function() return LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("RollMythicWarningGui") end)
+    return ok and g and g.Enabled == true
+end
+
+local function weaponPrice(name)
+    if WeaponsDatabase and WeaponsDatabase[name] and WeaponsDatabase[name].Price then return WeaponsDatabase[name].Price end
+    return nil
+end
+
+local function statPrice(statKey)
+    if not UpgradeConfig then return nil end
+    local cfg = UpgradeConfig[statKey]
+    if not cfg then return nil end
+    local lvl = LocalPlayer:GetAttribute(statKey) or 0
+    if cfg.MaxLevel and lvl >= cfg.MaxLevel then return nil end
+    if cfg.Prices then return cfg.Prices[lvl + 1] end
+    if cfg.BasePrice and cfg.GrowthRate then return math.floor(cfg.BasePrice * (cfg.GrowthRate ^ (lvl - (cfg.ExponentOffset or 0)))) end
+    return nil
+end
+
+local function nextZonePrice()
+    if not ZoneDatabase then return nil, nil end
+    local cur = LocalPlayer:GetAttribute("Zone")
+    local idx = nil
+    for i, z in ipairs(ZoneDatabase) do
+        if z.Name == cur or z.DisplayName == cur then idx = i break end
+    end
+    if not idx then return nil, nil end
+    local nxt = ZoneDatabase[idx + 1]
+    if not nxt then return nil, nil end
+    return nxt.Price, (nxt.DisplayName or nxt.Name)
+end
+
+local function prestigeRequired()
+    local p = LocalPlayer:GetAttribute("Prestige") or 0
+    if XPConfig and XPConfig.RequiredLevelForPrestige then
+        local ok, v = pcall(function() return XPConfig.RequiredLevelForPrestige(p) end)
+        if ok and v then return v end
+    end
+    if p <= 5 then return 10 + p * 5 end
+    return 35 + (p - 5) * 3
+end
+
+-- ===================================================
+-- UI TABS & GROUPS
+-- ===================================================
+
+do
+    local Info = Tabs.Main:AddLeftGroupbox("Info", "info")
+    Info:AddLabel("Game: " .. gameName, true)
+    Info:AddLabel("Hub: Ouroboros Hub (audited)", true)
+    Info:AddLabel("Press RightShift to toggle UI", true)
+    Info:AddDivider()
+    local Session = Tabs.Main:AddLabel("Session: 00:00", false)
+    task.spawn(function()
+        local s = 0
+        while not Library.Unloaded do
+            task.wait(1)
+            s = s + 1
+            pcall(function() Session:SetText(string.format("Session: %02d:%02d", math.floor(s / 60), s % 60)) end)
+        end
+    end)
+
+    local Quick = Tabs.Main:AddRightGroupbox("Quick Status", "activity")
+    Quick:AddLabel("Live attributes from server...", true)
+    local cashLabel = Quick:AddLabel("Cash: ...", false)
+    local lvlLabel = Quick:AddLabel("Level: ...", false)
+    local unitLabel = Quick:AddLabel("Units: ...", false)
+    task.spawn(function()
+        while not Library.Unloaded do
+            task.wait(1)
+            pcall(function()
+                cashLabel:SetText("Cash: " .. tostring(money()))
+                lvlLabel:SetText("Level: " .. tostring(LocalPlayer:GetAttribute("Level") or 0) .. " | Prestige: " .. tostring(LocalPlayer:GetAttribute("Prestige") or 0))
+                unitLabel:SetText("Units: " .. tostring(unitCount()) .. " / " .. tostring(unitCap()) .. " | Shards: " .. tostring(LocalPlayer:GetAttribute("TraitShardCount") or 0))
+            end)
+        end
+    end)
+end
+
+do
+    local ResourceTabs = Tabs.Farming:AddSubTab("Resource Collecting", "coins")
+    local QuestingTabs = Tabs.Farming:AddSubTab("Questing", "scroll-text")
+    local SellingTabs = Tabs.Farming:AddSubTab("Selling", "trash-2")
+
+    local Collect = ResourceTabs:AddLeftGroupbox("Income", "wallet")
+    Collect:AddToggle("AutoCollectCash", { Text = "Auto Collect Cash", Default = false, Tooltip = "Fires CollectCashEvent (tested: no error)" })
+    Collect:AddToggle("AutoFarmWaves", { Text = "Auto Farm Waves", Default = false, Tooltip = "Fires PlayerAttackEvent (tested)" })
+
+    Toggles.AutoCollectCash:OnChanged(function()
+        if Toggles.AutoCollectCash.Value then
+            startLoop("AutoCollectCash", function()
+                if Remotes.CollectCash then Remotes.CollectCash:FireServer() end
+            end)
+        else stopLoop("AutoCollectCash") end
+    end)
+
+    Toggles.AutoFarmWaves:OnChanged(function()
+        if Toggles.AutoFarmWaves.Value then
+            startLoop("AutoFarmWaves", function()
+                if Remotes.PlayerAttack then Remotes.PlayerAttack:FireServer() end
+                if Remotes.CollectCash then pcall(function() Remotes.CollectCash:FireServer() end) end
+            end)
+        else stopLoop("AutoFarmWaves") end
+    end)
+
+    local CashInfo = ResourceTabs:AddRightGroupbox("Cash Info", "info")
+    CashInfo:AddLabel("Cash is server-owned (Player:GetAttribute('Money')).", true)
+    CashInfo:AddButton({ Text = "Collect Once", Func = function()
+        if Remotes.CollectCash then Remotes.CollectCash:FireServer() end
+        notify("Collect Cash", "Fired once", 1)
+    end })
+
+    local Q = QuestingTabs:AddLeftGroupbox("Quests & Challenges", "award")
+    Q:AddDropdown("QuestTiers", { Text = "Quest Tiers", Values = QuestTierList, Default = 1, Multi = true, SelectAllButtons = true })
+    Q:AddToggle("AutoCompleteQuests", { Text = "Auto Complete Quests", Default = false, Tooltip = "Claims quest IDs per selected tier" })
+    Q:AddDropdown("ChallengeTiers", { Text = "Challenge Tiers", Values = ChallengeTierList, Default = 1, Multi = true })
+    Q:AddToggle("AutoCompleteChallenges", { Text = "Auto Complete Challenges", Default = false, Tooltip = "Starts selected challenge tiers (not live-fired: disruptive)" })
+    Q:AddToggle("AutoEnterInfiniteTower", { Text = "Auto Enter Infinite Tower", Default = false, Tooltip = "Not live-fired: teleports you" })
+
+    Toggles.AutoCompleteQuests:OnChanged(function()
+        if Toggles.AutoCompleteQuests.Value then
+            startLoop("AutoCompleteQuests", function()
+                if not Remotes.ClaimEventQuest then return end
+                local tiers = selectedSet(Options.QuestTiers)
+                for tier, _ in pairs(tiers) do
+                    for _, qid in ipairs(QuestIdsByTier[tier] or {}) do
+                        pcall(function() Remotes.ClaimEventQuest:InvokeServer(qid) end)
+                    end
+                end
+            end)
+        else stopLoop("AutoCompleteQuests") end
+    end)
+
+    Toggles.AutoCompleteChallenges:OnChanged(function()
+        if Toggles.AutoCompleteChallenges.Value then
+            if not Remotes.ChallengeStart then return end
+            startLoop("AutoCompleteChallenges", function()
+                local tiers = selectedSet(Options.ChallengeTiers)
+                local n = 0
+                for k, _ in pairs(tiers) do n = n + 1 end
+                if n == 0 then pcall(function() Remotes.ChallengeStart:InvokeServer("Regular") end)
+                else for tier, _ in pairs(tiers) do pcall(function() Remotes.ChallengeStart:InvokeServer(tier) end) end end
+            end)
+        else stopLoop("AutoCompleteChallenges") end
+    end)
+
+    Toggles.AutoEnterInfiniteTower:OnChanged(function()
+        if Toggles.AutoEnterInfiniteTower.Value then
+            startLoop("AutoEnterInfiniteTower", function()
+                if Remotes.InfiniteTower then pcall(function() Remotes.InfiniteTower:InvokeServer() end) end
+            end)
+        else stopLoop("AutoEnterInfiniteTower") end
+    end)
+
+    local Rewards = QuestingTabs:AddRightGroupbox("Rewards", "gift")
+    Rewards:AddToggle("AutoClaimDailyRewards", { Text = "Auto Claim Daily Rewards", Default = false, Tooltip = "Claims NextDay from status (tested)" })
+    Rewards:AddToggle("AutoClaimGroupRewards", { Text = "Auto Claim Group Rewards", Default = false })
+    Rewards:AddButton({ Text = "Claim Daily Now", Func = function()
+        if Remotes.ClaimDaily and Remotes.GetDailyStatus then
+            local local ok, st = pcall(function() return Remotes.GetDailyStatus:InvokeServer() end)
+            local day = (ok and type(st) == "table" and st.NextDay) or 1
+            pcall(function() Remotes.ClaimDaily:InvokeServer(day) end)
+            notify("Daily", "Claim attempted (day " .. tostring(day) .. ")")
+        end
+    end })
+    Rewards:AddButton({ Text = "Claim Group Now", Func = function()
+        if Remotes.ClaimGroup then pcall(function() Remotes.ClaimGroup:InvokeServer() end) notify("Group", "Claim attempted") end
+    end })
+
+    Toggles.AutoClaimDailyRewards:OnChanged(function()
+        if Toggles.AutoClaimDailyRewards.Value then
+            startLoop("AutoClaimDailyRewards", function()
+              if Remotes.ClaimGroup then pcall(function() Remotes.ClaimGroup:InvokeServer() end) end
+            end)
+        else stopLoop("AutoClaimGroupRewards") end
+    end)
+
+    local S = SellingTabs:AddLeftGroupbox("Selling", "banknote")
+    S:AddDropdown("SellRarities", { Text = "Sell Rarities", Values = RarityList, Default = 1, Multi = true, SelectAllButtons = true })
+    S:AddToggle("AutoSellUnits", { Text = "Auto Sell Units", Default = false, Tooltip = "Sells backpack units matching rarities; skips equipped and locked" })
+
+    local function sellSelected()
+        if not Remotes.SellUnits then notify("Sell", "Remote missing", 2) return 0 end
+        local want = selectedSet(Options.SellRarities)
+        local ids = {}
+        for _, tool in ipairs(getUnitTools()) do
+            if tool:GetAttribute("Equipped") == true or tool:GetAttribute("Locked") == true then continue end
+            local r = unitRarity(tool.Name)
+            if r and want[r] then table.insert(ids, tool) end
+        end
+        if #ids == 0 then notify("Sell", "No sellable units match (equipped and locked are skipped)", 2) return 0 end
+        local ok, res = pcall(function() return Remotes.SellUnits:InvokeServer(ids) end)
+        notify("Sell", ok and ("Sent " .. #ids .. " units, server: " .. tostring(res)) or "Sell rejected", 3)
+        return #ids
+    end
+
+    Toggles.AutoSellUnits:OnChanged(function()
+        if Toggles.AutoSellUnits.Value then startLoop("AutoSellUnits", function() sellSelected() end, 3)
+        else stopLoop("AutoSellUnits") end
+    end)
+
+    local SHint = SellingTabs:AddRightGroupbox("Hint", "info")
+    SHint:AddLabel("Sells real unit tools (UnitId), never equipped or locked. Server returns true or false.", true)
+    SHint:AddButton({ Text = "Sell Selected Once", Func = function() sellSelected() end })
+end
+
+do
+    local Rolling = Tabs.Inventory:AddSubTab("Rolling", "dices")
+    local WeaponsTab = Tabs.Inventory:AddSubTab("Weapons", "sword")
+    local UnitsTab = Tabs.Inventory:AddSubTab("Units", "users")
+    local UpgradesTab = Tabs.Inventory:AddSubTab("Upgrades", "trending-up")
+    local ZonesCons = Tabs.Inventory:AddSubTab("Zones & Consumables", "map")
+
+    local RollBox = Rolling:AddLeftGroupbox("Auto Roll", "sparkles")
+    RollBox:AddToggle("AutoRoll", { Text = "Auto Roll (Station)", Default = false, Tooltip = "Rolls at your station, buys Keep rarities under the price cap, rerolls the rest. No gamepass needed." })
+    RollBox:AddDropdown("KeepRarities", { Text = "Keep Rarities", Values = RarityList, Default = RarityList, Multi = true, SelectAllButtons = true, Tooltip = "Stand units of these rarities get bought" })
+    RollBox:AddInput("MaxBuyPrice", { Text = "Max Buy Price", Default = "100000", Placeholder = "e.g. 50000, 1M, 2.5B", Tooltip = "Never pay more than this per stand unit", Numeric = false, Finished = true })
+    RollBox:AddLabel("Wanted but short on cash waits. Mythic+ is never auto-destroyed.", true)
+
+    local rollState = { returnPos = nil, warned = false, poorWarned = false }
+
+    local function collectWantedOnce()
+        local stands = getStandUnits()
+        local keep = selectedSet(Options.KeepRarities)
+        local capmax = maxBuyPrice()
+        local cash = money()
+        local bought, waiting, precious = 0, 0, 0
+        for _, s in ipairs(stands) do
+            local r = unitRarity(s.name)
+            if not r or NEVER_AUTO_DESTROY[r] then
+                precious = precious + 1
+            elseif keep[r] and s.price and s.price <= capmax then
+                if cash >= s.price then
+                    local ok = pcall(function() fireproximityprompt(s.prompt) end)
+                    if ok then cash = cash - s.price bought = bought + 1 end
+                else
+                    waiting = waiting + 1
+                end
+            end
+        end
+        return bought, waiting, precious, #stands
+    end
+
+    local function doRollTick()
+        if mythicOnStand() then
+            if not rollState.warned then rollState.warned = true notify("Auto Roll", "Mythic+ waiting on stand: collect it manually, rolling paused", 5) end
+            return
+        end
+        rollState.warned = false
+        if unitCount() >= unitCap() then
+            notify("Auto Roll", "Inventory full (" .. unitCap() .. "), rolling paused", 4)
+            stopLoop("AutoRoll")
+            if Toggles.AutoRoll then pcall(function() Toggles.AutoRoll:SetValue(false) end) end
+            return
+        end
+        local bought, waiting, precious, total = collectWantedOnce()
+        if precious > 0 then
+            notify("Auto Roll", "Rare unit on stand: collect it manually, rolling paused", 5)
+            return
+        end
+        if waiting > 0 then
+            if not rollState.poorWarned then rollState.poorWarned = true notify("Auto Roll", "Wanted unit on stand but short on cash: waiting", 4) end
+            return
+        end
+        rollState.poorWarned = false
+        if bought > 0 then return end
+        if total > 0 then
+            if Remotes.ConfirmedRoll then pcall(function() Remotes.ConfirmedRoll:FireServer() end) end
+            return
+        end
+        local rb = getRollButton()
+        if not rb then return end
+        local pp = rb:FindFirstChild("ProximityPrompt")
+        if not pp then return end
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp and (hrp.Position - rb.Frame.Position).Magnitude > 10 then
+            hrp.CFrame = rb.CFrame = Vector3.new(0, 3, 4)
+            task.wait(0.6)
+        end
+        pcall(function() fireproximityprompt(pp) end)
+    end
+
+    Toggles.AutoRoll:OnChanged(function()
+        if Toggles.AutoRoll.Value then
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            rollState.returnPos = (hrp and hrp.CFrame) or nil
+            rollState.warned = false
+            rollState.poorWarned = false
+            startLoop("AutoRoll", doRollTick, 1)
+            notify("Auto Roll", "Started at your station")
+        else
+            stopLoop("AutoRoll")
+            if rollState.returnPos then
+                local char2 = LocalPlayer.Character
+                local hrp2 = char2 and char2:FindFirstChild("HumanoidRootPart")
+                if hrp2 then pcall(function() hrp2.CFrame = rollState.returnPos end) end
+                rollState.returnPos = nil
+            end
+            notify("Auto Roll", "Stopped", 2)
+        end
+    end)
+
+    local Manual = Rolling:AddRightGroupbox("Manual", "hand")
+    Manual:AddButton({ Text = "Roll Once", Func = function()
+        local rb = getRollButton()
+        local pp = rb and rb:FindFirstChild("ProximityPrompt")
+        if pp then pcall(function() fireproximityprompt(pp) end) notify("Roll", "Pressed", 1) else notify("Roll", "Station not found", 2) end
+    end })
+    Manual:AddButton({ Text = "Collect Wanted Once", Func = function()
+        local bought, waiting, precious, total = collectWantedOnce()
+        if precious > 0 then notify("Collect", "Rare unit on stand: collect manually", 4)
+        elseif waiting > 0 then notify("Collect", "Short on cash", 3)
+        elseif bought > 0 then notify("Collect", "Bought " .. bought, 2)
+        else notify("Collect", total > 0 and "Nothing wanted on stand" or "Stand empty", 2) end
+    end })
+    Manual:AddButton({ Text = "Go To Station", Func = function()
+        local rb = getRollButton()
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if rb and hrp then hrp.CFrame = rb.CFrame + Vector3.new(0, 3, 4) end
+    end })
+    Manual:AddLabel("Keep list plus price cap decide every day. Gamepass events need a pass you do not own.", true)
+          -- [[ เพิ่มเติม: ระบบเลือกระดับ (Rarity/Tier) สำหรับออโต้ซื้อ ]] --
+    WBuy:AddDropdown("BuyRarities", { Text = "Select Buy Tiers / Rarities", Values = RarityList, Default = 1, Multi = true, SelectAllButtons = true, Tooltip = "Select which unit/weapon rarities to automatically purchase" })
+    
+    WBuy:AddToggle("AutoBuyWeapons", { Text = "Auto Buy Selected Tiers/Weapons", Default = false, Tooltip = "Only buys when cash covers the price and matches selected rarities" })
+
+    Toggles.AutoBuyWeapons:OnChanged(function()
+        if Toggles.AutoBuyWeapons.Value then
+            startLoop("AutoBuyWeapons", function()
+                if not Remotes.BuyWeapon then return end
+                local cash = money()
+                local selectedWeapons = selectedSet(Options.BuyWeapons)
+                local selectedRarities = selectedSet(Options.BuyRarities)
+                
+                for weapon, _ in pairs(selectedWeapons) do
+                    local price = weaponPrice(weapon)
+                    local rarity = unitRarity(weapon) -- เช็คระดับของไอเทม
+                    
+                    -- ตรวจสอบว่าตรงตามระดับที่เลือก (หรือถ้าไม่พบข้อมูล Rarity จะตรวจสอบเฉพาะเงิน)
+                    local matchesRarity = (rarity == nil) or selectedRarities[rarity]
+                    
+                    if matchesRarity and price and cash >= price then
+                        local ok, res = pcall(function() return Remotes.BuyWeapon:InvokeServer(weapon) end)
+                        if ok and res == true then cash = money() end
+                    end
+                end
+                task.wait(0.2)
+            end)
+        else stopLoop("AutoBuyWeapons") end
+    end)
+
+    local WEquip = WeaponsTab:AddRightGroupbox("Equipping", "shield")
+    WEquip:AddToggle("AutoEquipBestWeapon", { Text = "Auto Equip Best Weapon", Default = false, Tooltip = "Stops at first server-confirmed (true) equip" })
+    WEquip:AddButton({ Text = "Equip Best Now", Func = function()
+        if not Remotes.EquipWeapon then return end
+        for _, w in ipairs(WeaponBestFirst) do
+            local ok, res = pcall(function() return Remotes.EquipWeapon:InvokeServer(w) end)
+            if ok and res == true then notify("Equip", "Equipped " .. w) return end
+        end
+        notify("Equip", "No owned weapon equipped", 2)
+    end })
+
+    Toggles.AutoEquipBestWeapon:OnChanged(function()
+        if Toggles.AutoEquipBestWeapon.Value then
+            startLoop("AutoEquipBestWeapon", function()
+                if not Remotes.EquipWeapon then return end
+                for _, w in ipairs(WeaponBestFirst) do
+                    local ok, res = pcall(function() return Remotes.EquipWeapon:InvokeServer(w) end)
+                    if ok and res == true then break end
+                end
+            end)
+        else stopLoop("AutoEquipBestWeapon") end
+    end)
+
+    local U = UnitsTab:AddLeftGroupbox("Unit Management", "users")
+    U:AddToggle("AutoEquipBestUnits", { Text = "Auto Equip Best Units", Default = false, Tooltip = "No-arg call per game code" })
+    U:AddButton({ Text = "Pick Up Placed Units", Func = function()
+        if Remotes.PickUpAll then
+            local ok, res = pcall(function() return Remotes.PickUpAll:InvokeServer() end)
+            notify("Pick Up", tostring(res))
+        end
+    end })
+    U:AddButton({ Text = "Fuse Duplicates", Func = function()
+        if not Remotes.Fuse then return end
+        local fused = 0
+        local byName = {}
+        for _, t in ipairs(getUnitTools()) do
+            byName[t.Name] = byName[t.Name] or {}
+            table.insert(byName[t.Name], t)
+        end
+        for name, list in pairs(byName) do
+            if #list >= 2 then
+                local ok, res = pcall(function() return Remotes.Fuse:InvokeServer(list[1], 1) end)
+                if ok and res == true then fused = fused + 1 end
+                task.wait(0.3)
+            end
+        end
+        notify("Fuse", fused > 0 and ("Fused " .. fused) or "No duplicates found")
+    end })
+
+    U:AddDropdown("EvolveTargets", { Text = "Evolve Targets", Values = EvolveList, Default = 1, Multi = true, SelectAllButtons = true })
+    U:AddButton({ Text = "Start Evolve", Func = function()
+        if not Remotes.Evolve then return end
+        local sel = selectedSet(Options.EvolveTargets)
+        for name, _ in pairs(sel) do
+            local tool = findToolByName(name)
+            if tool then
+                local ok, res = pcall(function() return Remotes.Evolve:InvokeServer(tool) end)
+                notify("Evolve " .. name, tostring(res), 3)
+            else
+                notify("Evolve " .. name, "no unit owned", 2)
+            end
+            task.wait(0.3)
+        end
+    end })
+    U:AddButton({ Text = "Claim Evolve", Func = function()
+        if Remotes.ClaimEvolve then
+            local ok, res = pcall(function() return Remotes.ClaimEvolve:InvokeServer() end)
+            notify("Claim Evolve", tostring(res))
+        end
+    end })
+
+    Toggles.AutoEquipBestUnits:OnChanged(function()
+        if Toggles.AutoEquipBestUnits.Value then
+            startLoop("AutoEquipBestUnits", function()
+                if Remotes.EquipBest then pcall(function() Remotes.EquipBest:InvokeServer() end) end
+            end)
+        else stopLoop("AutoEquipBestUnits") end
+    end)
+
+    local UHelp = UnitsTab:AddRightGroupbox("Help", "info")
+    UHelp:AddLabel("Fuse needs 2+ copies of one unit. Evolve needs copies plus materials. Rerolling is manual in the Trait UI.", true)
+
+    local Up = UpgradesTab:AddLeftGroupbox("Stat Upgrades", "arrow-up")
+    Up:AddToggle("AutoUpgradeAll", { Text = "Auto Upgrade All Stats", Default = false, Tooltip = "Buys cheapest upgrade first across the whole tree; skips what you cannot afford" })
+    local lastBought = Up:AddLabel("Last: none", false)
+
+    Toggles.AutoUpgradeAll:OnChanged(function()
+        if Toggles.AutoUpgradeAll.Value then
+            startLoop("AutoUpgradeAll", function()
+                if not (Remotes.Upgrade and UpgradeConfig) then return end
+                local cash = money()
+                local bestKey, bestPrice = nil, nil
+                for statKey, cfg in pairs(UpgradeConfig) do
+                    if type(cfg) == "table" then
+                        local price = statPrice(statKey)
+                        if price and cash >= price and (not bestPrice or price < bestPrice) then
+                            bestKey, bestPrice = statKey, price
+                        end
+                    end
+                end
+                if bestKey then
+                    pcall(function() Remotes.Upgrade:FireServer(bestKey) end)
+                    pcall(function() lastBought:SetText("Last: " .. bestKey .. " (" .. tostring(bestPrice) .. ")") end)
+                end
+            end)
+        else stopLoop("AutoUpgradeAll") end
+    end)
+
+    local UpInfo = UpgradesTab:AddRightGroupbox("Upgrade Info", "info")
+    UpInfo:AddLabel("Covers every stat in the tree, including ones with no manual button. Never fires when short on cash.", true)
+
+    local Z = ZonesCons:AddLeftGroupbox("Zones", "map-pin")
+    Z:AddToggle("AutoPurchaseZones", { Text = "Auto Purchase Zones", Default = false, Tooltip = "Only fires when cash covers the next zone" })
+    local zoneLabel = Z:AddLabel("Next: ...", false)
+    Z:AddDropdown("TravelZones", { Text = "Travel Destination", Values = ZoneList, Default = 1, Multi = false, Searchable = true })
+    Z:AddButton({ Text = "Travel Now", Func = function()
+        if not (Remotes.ZoneTravel and Options.TravelZones) then return end
+        local v = Options.TravelZones.Value
+        local zone = (type(v) == "string" and v) or ZoneList[1]
+        pcall(function() Remotes.ZoneTravel:FireServer(zone) end)
+        notify("Travel", tostring(zone))
+    end })
+
+    task.spawn(function()
+        while not Library.Unloaded do
+            task.wait(2)
+            pcall(function()
+                local price, name = nextZonePrice()
+                if price and name then zoneLabel:SetText("Next: " .. tostring(name) .. " (" .. tostring(price) .. "), you: " .. tostring(money()))
+                else zoneLabel:SetText("Next: maxed or unknown") end
+            end)
+        end
+    end)
+
+    Toggles.AutoPurchaseZones:OnChanged(function()
+        if Toggles.AutoPurchaseZones.Value then
+            startLoop("AutoPurchaseZones", function()
+                if not Remotes.ZonePurchase then return end
+                local price = nextZonePrice()
+                if price and money() >= price then pcall(function() Remotes.ZonePurchase:FireServer() end) end
+            end, 3)
+        else stopLoop("AutoPurchaseZones") end
+    end)
+
+    local C = ZonesCons:AddRightGroupbox("Consumables & Abilities", "flask-conical")
+    C:AddDropdown("PotionTypes", { Text = "Potions", Values = PotionList, Default = 1, Multi = true, SelectAllButtons = true })
+    C:AddToggle("AutoUsePotions", { Text = "Auto Use Potions", Default = false, Tooltip = "Luck Potion=true tested; gated on inventory count" })
+    C:AddToggle("AutoUseOnPlaced", { Text = "Auto-Use Abilities On Placed Units", Default = false, Tooltip = "Per-unit call per game code" })
+    C:AddButton({ Text = "Use All Abilities", Func = function()
+        if not Remotes.UseAbility then return end
+        local n = 0
+        for _, u in ipairs(getOwnPlacedUnits()) do
+            local ok, res = pcall(function() return Remotes.UseAbility:InvokeServer(u) end)
+            if ok and res then n = n + 1 end
+        end
+        notify("Abilities", "Used " .. n)
+    end })
+
+    Toggles.AutoUsePotions:OnChanged(function()
+        if Toggles.AutoUsePotions.Value then
+            startLoop("AutoUsePotions", function()
+                if not (Remotes.UsePotion and Remotes.GetItemInv) then return end
+                local ok, inv = pcall(function() return Remotes.GetItemInv:InvokeServer() end)
+                if not ok or type(inv) ~= "table" then return end
+                local sel = selectedSet(Options.PotionTypes)
+                for potion, _ in pairs(sel) do
+                    if (inv[potion] or 0) > 0 then
+                        pcall(function() Remotes.UsePotion:InvokeServer(potion) end)
+                        task.wait(0.2)
+                    end
+                end
+            end)
+        else stopLoop("AutoUsePotions") end
+    end)
+
+    Toggles.AutoUseOnPlaced:OnChanged(function()
+        if Toggles.AutoUseOnPlaced.Value then
+            if not Remotes.SetAutoUse then return end
+            for _, u in ipairs(getOwnPlacedUnits()) do pcall(function() Remotes.SetAutoUse:InvokeServer(u, true) end) end
+        else
+            if not Remotes.SetAutoUse then return end
+            for _, u in ipairs(getOwnPlacedUnits()) do pcall(function() Remotes.SetAutoUse:InvokeServer(u, false) end) end
+            stopLoop("AutoUseOnPlaced")
+        end
+    end)
+end
+
+do
+    local P = Tabs.Rebirth:AddLeftGroupbox("Prestige", "crown")
+    local gateLabel = P:AddLabel("...", false)
+    P:AddButton({ Text = "Prestige Now", Func = function()
+        local need = prestigeRequired()
+        local lvl = LocalPlayer:GetAttribute("Level") or 0
+        if lvl < need then notify("Prestige", "Need level " .. need .. " (you: " .. lvl .. ")", 3) return end
+        if Remotes.Prestige then Remotes.Prestige:FireServer() notify("Prestige", "Fired at level " .. lvl) end
+    end })
+    P:AddToggle("AutoPrestige", { Text = "Auto Prestige", Default = false, Tooltip = "Client-gated on level; never fired live in testing" })
+
+    Toggles.AutoPrestige:OnChanged(function()
+        if Toggles.AutoPrestige.Value then
+            startLoop("AutoPrestige", function()
+                local need = prestigeRequired()
+                if (LocalPlayer:GetAttribute("Level") or 0) >= need and Remotes.Prestige then
+                    Remotes.Prestige:FireServer()
+                end
+            end)
+        else stopLoop("AutoPrestige") end
+    end)
+
+    local PInfo = Tabs.Rebirth:AddRightGroupbox("Info", "info")
+    PInfo:AddLabel("Prestige resets progress for permanent rewards. Formula: level 10 plus 5 per early prestige.", true)
+    task.spawn(function()
+        while not Library.Unloaded do
+            task.wait(1)
+            pcall(function()
+                gateLabel:SetText("Need Lv " .. tostring(prestigeRequired()) .. " | You Lv " .. tostring(LocalPlayer:GetAttribute("Level") or 0))
+            end)
+        end
+    end)
+end
+      do
+    local ConfigBox = Tabs.Settings:AddLeftGroupbox("Config", "save")
+    ConfigBox:AddLabel("Save/load your settings via SaveManager.", true)
+    local SystemTabs = Tabs.Settings:AddRightGroupbox("System", "cogs")
+    SystemTabs:AddToggle("AntiAFK", { Text = "Anti-AFK", Default = true, Tooltip = "Jumps every 5 minutes to prevent idle kick" })
+    SystemTabs:AddLabel("Enabled by default. Uses AntiAFKActivityPingEvent + Humanoid jump.", true)
+    SystemTabs:AddDivider()
+    SystemTabs:AddLabel("Menu Keybind"):AddKeyPicker("MenuKeybind", { Default = "RightShift", NoUI = false, Text = "Menu Keybind", Mode = "Toggle" })
+
+    local jumpLoopId = "AntiAFK"
+    local function setAntiAFK(enabled)
+        if enabled then
+            startLoop(jumpLoopId, function()
+                task.spawn(function()
+                    while Toggles.AntiAFK and Toggles.AntiAFK.Value do
+                        if Library.Unloaded then break end
+                        pcall(function()
+                            local ping = getRemote("AntiAFKActivityPingEvent")
+                            if ping then ping:FireServer() end
+                        end)
+                        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                        if hum then hum.Jump = true hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+                        for i = 1, 300 do
+                            if not Toggles.AntiAFK.Value or Library.Unloaded then break end
+                            task.wait(1)
+                        end
+                    end
+                end)
+                notify("Anti-AFK", "Enabled (jump every 5m)", 2)
+            end)
+        else
+            stopLoop(jumpLoopId)
+            notify("Anti-AFK", "Disabled", 2)
+        end
+    end
+
+    task.defer(function()
+        task.wait(0.5)
+        if Toggles.AntiAFK then setAntiAFK(Toggles.AntiAFK.Value) end
+    end)
+    Toggles.AntiAFK:OnChanged(function(val) setAntiAFK(val) end)
+
+    SystemTabs:AddDivider()
+    SystemTabs:AddButton({ Text = "Unload Hub", Func = function() Library:Unload() end })
+
+    ThemeManager:SetLibrary(Library)
+    SaveManager:SetLibrary(Library)
+    SaveManager:IgnoreThemeSettings()
+    SaveManager:SetIgnoreIndexes({"MenuKeybind"})
+    ThemeManager:SetFolder("OuroborosHub")
+    SaveManager:SetFolder("OuroborosHub/" .. gameName:gsub("[^%w%s_]", ""):gsub("%s+", "_"))
+    pcall(function() SaveManager:SetSubFolder(tostring(game.PlaceId)) end)
+    SaveManager:BuildConfigSections(Tabs.Settings)
+    ThemeManager:ApplyToTab(Tabs.Settings)
+    task.spawn(function() pcall(function() SaveManager:LoadAutoloadConfig() end) end)
+    Library.ToggleKeybind = Options.MenuKeybind
+end
+
+Library:Notify({ Title = "Ouroboros Hub", Description = gameName .. " loaded! Press RightShift", Time = 4 })
